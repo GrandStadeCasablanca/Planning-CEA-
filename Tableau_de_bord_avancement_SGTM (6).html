@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SGTM – Suivi d'avancement Lots secondaires</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --navy:#15233B; --navy2:#1C2D4A; --gold:#D6A42B; --gold-soft:#FBF1D9; --bg:#EEF1F6; --card:#fff;
+  --ink:#16223A; --muted:#6B7689; --line:#E3E7EE; --red:#E23B3B; --red-soft:#FDE7E7; --green:#1F9D55; --green-soft:#E3F5EA;
+  --blue:#2F6FE0; --blue-soft:#E4EDFC; --grey-soft:#EEF0F4;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:inherit}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:14px/1.4 Inter,"Segoe UI",Arial,sans-serif;font-variant-numeric:tabular-nums}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+/* ---------- top bar */
+.top{height:74px;background:var(--navy);color:#fff;display:flex;align-items:center;gap:20px;padding:0 26px;position:sticky;top:0;z-index:20}
+.badge{background:var(--gold);color:var(--navy);font-weight:800;padding:8px 14px;border-radius:5px;letter-spacing:.04em}
+.tsep{width:1px;height:40px;background:#33445F}
+.ttl small{display:block;color:var(--gold);font-weight:600;letter-spacing:.18em;font-size:13px}
+.ttl b{font-size:19px;font-weight:700}
+.top .sp{flex:1}
+.today{color:#C9D1DE;font-size:14px}
+.btn-gold{background:var(--gold);color:var(--navy);border:0;border-radius:6px;padding:10px 18px;font-weight:700;cursor:pointer;display:flex;gap:8px;align-items:center}
+.btn-gold:hover{filter:brightness(1.05)}
+
+/* ---------- layout */
+.app{display:flex;min-height:calc(100vh - 74px)}
+aside{width:198px;flex:none;background:var(--navy2);color:#fff;padding-top:24px}
+.logo{padding:0 18px 22px}
+.tri{width:0;height:0;border-left:16px solid transparent;border-right:16px solid transparent;border-bottom:26px solid var(--gold);margin-bottom:6px}
+.logo b{font-size:22px;font-weight:800;display:block;letter-spacing:.02em}
+.logo span{font-size:10.5px;font-weight:700;display:block}
+.logo em{font-style:normal;color:var(--gold);font-size:11px}
+nav a{display:flex;gap:12px;align-items:center;padding:14px 20px;color:#D7DEEA;text-decoration:none;cursor:pointer;border-left:3px solid transparent}
+nav a.on{background:#25385A;color:var(--gold);border-left-color:var(--gold);font-weight:600}
+nav a:hover{background:#22334F}
+nav svg{width:18px;height:18px;flex:none}
+main{flex:1;min-width:0}
+
+/* ---------- filters */
+.filters{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;background:#fff;padding:12px 18px;border-bottom:1px solid var(--line)}
+.ftl{color:var(--gold);font-weight:700;display:flex;gap:6px;align-items:center;font-size:15px}
+.f{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+.f select,.f input{border:1px solid var(--line);border-radius:6px;padding:7px 10px;background:#fff;min-width:130px;color:var(--ink);font-size:13.5px}
+.ms{position:relative}
+.ms>button{border:1px solid var(--line);border-radius:6px;padding:7px 30px 7px 10px;background:#fff;min-width:130px;max-width:230px;text-align:left;cursor:pointer;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative;color:var(--ink)}
+.ms>button::after{content:"";position:absolute;right:11px;top:50%;width:7px;height:7px;border-right:2px solid #4A5568;border-bottom:2px solid #4A5568;transform:translateY(-70%) rotate(45deg)}
+.ms .menu{position:absolute;top:calc(100% + 4px);left:0;z-index:30;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(21,35,59,.14);padding:6px;min-width:230px;max-height:360px;overflow:auto}
+.ms .menu label{white-space:nowrap;display:flex;gap:9px;align-items:center;padding:7px 8px;border-radius:5px;cursor:pointer;color:var(--ink);font-size:13.5px}
+.ms .menu label:hover{background:#F4F6FA}
+.f .ms .menu input{accent-color:var(--gold);width:15px;height:15px;min-width:0;padding:0;margin:0;flex:none}
+.ms .menu .sep{font-size:11.5px;color:var(--muted);padding:8px 8px 3px;border-top:1px solid var(--line);margin-top:4px}
+.ms .menu .acts{display:flex;justify-content:space-between;padding:4px 8px 6px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.ms .menu .acts button{border:0;background:none;color:var(--blue);cursor:pointer;font-size:12.5px;padding:0}
+.btn-line{border:1px solid var(--line);background:#fff;border-radius:6px;padding:7px 14px;color:var(--blue);cursor:pointer;display:flex;gap:6px;align-items:center;font-size:13.5px}
+.btn-line:hover{border-color:var(--blue)}
+
+/* ---------- grid */
+.content{padding:14px 14px 24px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.g3{display:grid;grid-template-columns:.85fr 1.8fr 1.2fr;gap:14px;margin-top:14px}
+.g2{display:grid;grid-template-columns:1.85fr 1fr;gap:14px;margin-top:14px}
+.card{background:var(--card);border-radius:8px;padding:18px 18px;box-shadow:0 1px 2px rgba(21,35,59,.06)}
+.card h3{margin:0 0 14px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.01em;display:flex;align-items:center;gap:10px}
+.card h3 .sp{flex:1}
+.kpi{display:flex;gap:14px;padding:14px 16px}
+.ico{width:48px;height:48px;border-radius:50%;background:var(--gold-soft);display:grid;place-items:center;flex:none}
+.ico svg{width:22px;height:22px;color:var(--gold)}
+.kpi .t{font-weight:700;font-size:12px;text-transform:uppercase}
+.kpi .v{font-size:26px;font-weight:800;line-height:1.15;margin:3px 0 1px}
+.kpi .s{color:var(--muted);font-size:12px}
+.pbar{height:8px;background:var(--grey-soft);border-radius:6px;margin-top:10px;overflow:hidden}
+.pbar i{display:block;height:100%;border-radius:6px}
+.c-gold{color:var(--gold)} .c-navy{color:var(--navy)} .c-red{color:var(--red)} .c-green{color:var(--green)}
+
+.donut{display:flex;align-items:center;gap:18px;margin-top:18px}
+.dwrap{position:relative;width:105px;height:105px;flex:none}
+.dwrap b{position:absolute;inset:0;display:grid;place-items:center;font-size:19px;font-weight:800;color:var(--gold)}
+.dleg{flex:1;font-size:12.5px}
+.dleg div{display:flex;align-items:center;gap:8px;margin:8px 0}
+.dleg i{width:12px;height:12px;border-radius:50%;flex:none}
+.dleg span{flex:1;color:var(--muted)}
+.dleg b{font-size:13.5px}
+.dleg small{color:var(--muted);display:block;margin-top:14px;font-size:12px}
+
+.cad{display:flex;gap:14px;align-items:center;margin:4px 0 18px}
+.cad .ico{width:44px;height:44px}
+.cad .ico svg{width:20px;height:20px}
+.cad .b{flex:1}
+.cad .row{display:flex;justify-content:space-between;align-items:baseline}
+.cad .row b{font-size:17px}
+.cad .row span{font-size:13.5px}
+.cad small{color:var(--muted);font-size:12px}
+.mini{border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:12.5px;background:#fff}
+
+.tools{display:flex;gap:10px}
+.search{border:1px solid var(--line);border-radius:6px;padding:7px 10px 7px 32px;min-width:220px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%236B7689' stroke-width='2'%3E%3Ccircle cx='7' cy='7' r='5'/%3E%3Cpath d='m11 11 4 4'/%3E%3C/svg%3E") no-repeat 10px center;font-size:13px}
+.tw{overflow:auto;border:1px solid var(--line);border-radius:6px}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:12.8px}
+th{background:#F4F6FA;color:var(--ink);font-weight:600;padding:9px 8px;text-align:center;white-space:nowrap;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:2}
+th:nth-child(2){text-align:left}
+td{padding:8px 8px;border-bottom:1px solid #EEF1F5;text-align:center;white-space:nowrap;background:#fff}
+td:nth-child(2){text-align:left}
+tr.click{cursor:pointer}
+tr.click:hover td{background:#FAFBFD}
+.st{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:5px;font-size:12px;font-weight:500;min-width:112px}
+.st::before{content:"";width:9px;height:9px;border-radius:50%;background:currentColor}
+.st.done{background:var(--green-soft);color:var(--green)}
+.st.almost,.st.ok{background:var(--blue-soft);color:var(--blue)}
+.st.ahead{background:var(--green-soft);color:var(--green)}
+.st.late,.st.over{background:var(--red-soft);color:var(--red)}
+.st.wait{background:var(--grey-soft);color:var(--muted)}
+.p-ok{color:var(--green);font-weight:600}.p-mid{color:#D88A00;font-weight:600}.p-bad{color:var(--red);font-weight:600}
+.legend{display:flex;justify-content:center;gap:22px;font-size:13px;margin-top:8px}
+.legend span{display:flex;gap:7px;align-items:center}
+.legend i{width:22px;height:0;border-top:3px solid}
+
+/* detail */
+#vDetail .tw{max-height:calc(100vh - 250px)}
+#vDetail td:nth-child(2){min-width:300px;max-width:440px;overflow:hidden;text-overflow:ellipsis}
+#vDetail th:nth-child(2),#vDetail td:nth-child(2){position:sticky;left:0;z-index:1}
+#vDetail th:nth-child(2){z-index:3}
+tr.s td{background:#F6F8FB;font-weight:600}
+tr.s1 td{background:#ECF0F6}
+.tg{display:inline-block;width:18px;cursor:pointer;color:var(--muted);text-align:center;user-select:none}
+.idn{color:var(--muted);font-size:11px;margin-right:6px}
+td input{width:62px;text-align:right;padding:4px 6px;border:1px solid #E6D3A0;border-radius:5px;background:#FFFCF2}
+td input.edited{border-color:var(--gold);background:#FBEFC9;font-weight:700}
+.hint{color:var(--muted);font-size:12.5px;margin:10px 2px 0;line-height:1.5}
+
+/* import */
+#drop{max-width:680px;margin:50px auto;background:#fff;border:2px dashed #C7CEDA;border-radius:10px;padding:40px 34px;text-align:center}
+#drop.over{border-color:var(--gold);background:#FFFBEF}
+#drop h2{margin:0 0 6px;font-size:21px}
+#drop ol{text-align:left;max-width:500px;margin:18px auto;color:var(--muted);line-height:1.7}
+#drop .btn-gold{margin:14px auto 0}
+
+/* méthode */
+.method{max-width:820px;line-height:1.65}
+.method h4{margin:20px 0 4px}
+.method p{margin:4px 0;color:#2F3B52}
+.method label{display:flex;gap:10px;align-items:center;margin:8px 0}
+
+[hidden]{display:none!important}
+@media (max-width:1250px){.g3{grid-template-columns:1fr 1fr}.g3 .card:nth-child(2){grid-column:1/-1;order:3}.g2{grid-template-columns:1fr}}
+@media (max-width:900px){.g4{grid-template-columns:1fr 1fr}aside{display:none}.top{height:auto;padding:12px;flex-wrap:wrap}.today{display:none}}
+@media (max-width:560px){.g4,.g3{grid-template-columns:1fr}.kpi .v{font-size:24px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <span class="badge">SGTM</span><span class="tsep"></span>
+  <div class="ttl"><small>GRAND STADE DE CASABLANCA</small><b>Suivi d'avancement – Lots secondaires</b></div>
+  <span class="sp"></span>
+  <span class="today" id="todayTxt"></span>
+  <button class="btn-gold" id="btnOpen">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 16V4m0 0-4 4m4-4 4 4"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+    Importer un planning</button>
+  <input type="file" id="file" accept=".xml" hidden>
+</header>
+
+<div class="app">
+<aside>
+  <div class="logo"><div class="tri"></div><b>SGTM</b><span>GRAND STADE DE CASABLANCA</span><em>Suivi Planning</em></div>
+  <nav>
+    <a class="on" data-v="vDash"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="7" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/></svg>Suivi d'avancement</a>
+    <a data-v="vDetail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Planning détaillé</a>
+    <a data-v="vMethod"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>Méthode de calcul</a>
+  </nav>
+</aside>
+
+<main>
+  <div class="filters" id="filters" hidden>
+    <span class="ftl"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 9v6l-4 2v-8z"/></svg>FILTRES</span>
+    <label class="f">Date d'arrêté <input type="date" id="fDate"></label>
+    <div class="f">Élément <div class="ms" data-ms="elem"><button type="button" aria-haspopup="true" aria-expanded="false">Tous</button><div class="menu" hidden></div></div></div>
+    <div class="f">Zone <div class="ms" data-ms="zone"><button type="button" aria-haspopup="true" aria-expanded="false">Toutes</button><div class="menu" hidden></div></div></div>
+    <div class="f">Niveau <div class="ms" data-ms="niv"><button type="button" aria-haspopup="true" aria-expanded="false">Tous</button><div class="menu" hidden></div></div></div>
+    <div class="f">Statut <div class="ms" data-ms="st"><button type="button" aria-haspopup="true" aria-expanded="false">Tous</button><div class="menu" hidden></div></div></div>
+    <button class="btn-line" id="btnReset"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Réinitialiser</button>
+  </div>
+
+  <div id="drop">
+    <h2>Importez le planning MS Project</h2>
+    <p style="color:var(--muted);margin:0">Déposez le fichier .xml ici, ou</p>
+    <button class="btn-gold" id="btnOpen2">Choisir le fichier</button>
+    <ol>
+      <li>Dans MS Project : <b>Fichier › Enregistrer sous</b>, type <b>Format XML (*.xml)</b>. Seule la partie <b>Lots secondaires</b> est reprise.</li>
+      <li>Le prévu est calculé à la date d'arrêté ; le réalisé est prérempli avec la colonne <b>%Avancement</b>.</li>
+      <li>Corrigez le réalisé dans <b>Planning détaillé</b> : le tableau de bord se met à jour.</li>
+    </ol>
+    <p style="color:var(--muted);font-size:12.5px">Un navigateur ne sait pas lire les .mpp : seul l'export XML de Project est accepté.</p>
+  </div>
+
+  <!-- ===== DASHBOARD ===== -->
+  <section class="content" id="vDash" hidden>
+    <div class="g4">
+      <div class="card kpi"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></div>
+        <div style="flex:1"><div class="t">Avancement prévu</div><div class="v c-gold" id="kPrev"></div><div class="s">Conformément au planning</div><div class="pbar"><i id="bPrev" style="background:var(--gold)"></i></div></div></div>
+      <div class="card kpi"><div class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/><path d="m7.5 12.5 3 3 6-6" stroke="#fff" stroke-width="2.4" fill="none"/></svg></div>
+        <div style="flex:1"><div class="t">Avancement réalisé</div><div class="v c-navy" id="kReal"></div><div class="s">Travaux exécutés</div><div class="pbar"><i id="bReal" style="background:var(--navy)"></i></div></div></div>
+      <div class="card kpi"><div class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="12" width="4" height="8" rx="1"/><rect x="10" y="6" width="4" height="14" rx="1"/><rect x="16" y="9" width="4" height="11" rx="1"/></svg></div>
+        <div style="flex:1"><div class="t">Écart</div><div class="v" id="kEc"></div><div class="s">Par rapport au planning</div><div class="pbar"><i id="bEc"></i></div></div></div>
+      <div class="card kpi"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        <div style="flex:1"><div class="t">Retard / avance (jours)</div><div class="v" id="kJ"></div><div class="s" id="kJs">Par rapport à la date contractuelle</div><div class="pbar"><i id="bJ"></i></div></div></div>
+    </div>
+
+    <div class="g3">
+      <div class="card"><h3>Avancement global</h3>
+        <div class="donut"><div class="dwrap"><canvas id="cDonut"></canvas><b id="dTxt"></b></div>
+          <div class="dleg"><div><i style="background:var(--gold)"></i><span>Avancement réalisé</span><b id="dR"></b></div>
+            <div><i style="background:#E4E7ED"></i><span>Reste à réaliser</span><b id="dRest"></b></div>
+            <small id="dScope"></small></div></div></div>
+      <div class="card"><h3 id="hBars">Avancement par type d'élément</h3><div style="height:200px"><canvas id="cBars"></canvas></div>
+        <div class="legend"><span><i style="border-color:var(--gold);border-top-width:10px;width:12px"></i>Prévu</span><span><i style="border-color:var(--navy);border-top-width:10px;width:12px"></i>Réalisé</span></div></div>
+      <div class="card"><h3>Cadence d'exécution<span class="sp"></span>
+        <select class="mini" id="fUnit" aria-label="Unité des cadences"><option value="1">% / jour</option><option value="7" selected>% / semaine</option><option value="30">% / mois</option></select></h3>
+        <div class="cad"><div class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm9 5v-2l-2.2-.4a7 7 0 0 0-.7-1.7l1.3-1.8-1.4-1.4-1.8 1.3a7 7 0 0 0-1.7-.7L14 3h-2l-.4 2.2a7 7 0 0 0-1.7.7L8.1 4.6 6.7 6l1.3 1.8a7 7 0 0 0-.7 1.7L5 10v2l2.2.4c.2.6.4 1.2.7 1.7l-1.3 1.8 1.4 1.4 1.8-1.3c.5.3 1.1.5 1.7.7L12 21h2l.4-2.2c.6-.2 1.2-.4 1.7-.7l1.8 1.3 1.4-1.4-1.3-1.8c.3-.5.5-1.1.7-1.7z" transform="translate(-1 0)"/></svg></div>
+          <div class="b"><div class="row"><span>Cadence actuelle</span><b id="cA"></b></div><div class="pbar"><i id="bcA" style="background:var(--gold)"></i></div></div></div>
+        <div class="cad"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg></div>
+          <div class="b"><div class="row"><span>Cadence prévue</span><b id="cP"></b></div><div class="pbar"><i id="bcP" style="background:var(--navy)"></i></div></div></div>
+        <div class="cad"><div class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="12" width="4" height="8" rx="1"/><rect x="10" y="6" width="4" height="14" rx="1"/><rect x="16" y="9" width="4" height="11" rx="1"/></svg></div>
+          <div class="b"><div class="row"><span>Cadence requise</span><b id="cR"></b></div><div class="pbar"><i id="bcR" style="background:#9BA6B8"></i></div><small id="cRs"></small></div></div>
+      </div>
+    </div>
+
+    <div class="g2">
+      <div class="card"><h3><span id="hTab">Suivi détaillé par activité</span><span class="sp"></span>
+        <span class="tools"><input class="search" id="qType" placeholder="Rechercher une activité…" aria-label="Rechercher une activité">
+        <button class="btn-line" id="btnXls"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 4v12m0 0-4-4m4 4 4-4"/><path d="M4 18v2h16v-2"/></svg>Exporter</button></span></h3>
+        <div class="tw"><table><thead><tr><th>N°</th><th>Activité</th><th>Début</th><th>Fin</th><th>Durée<br>(jours)</th><th>Prévu<br>%</th><th>Réalisé<br>%</th><th>Écart<br>%</th><th>Écart<br>(jours)</th><th>Cadence<br>actuelle</th><th>Cadence<br>requise</th><th>Statut</th></tr></thead>
+        <tbody id="tbType"></tbody></table></div>
+        <p class="hint">Cliquez sur une activité pour ouvrir ses tâches dans le planning détaillé. Cadences exprimées en <span class="uTxt"></span>.</p>
+      </div>
+      <div class="card"><h3>Courbe S – avancement cumulé</h3>
+        <div style="height:270px"><canvas id="cS"></canvas></div>
+        <div class="legend"><span><i style="border-color:var(--gold)"></i>Prévu</span><span><i style="border-color:var(--navy)"></i>Réalisé</span><span><i style="border-color:#9BA6B8;border-top-style:dashed"></i>Projection</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;gap:10px">
+          <small style="color:var(--muted)" id="snapTxt"></small>
+          <button class="btn-line" id="btnSnap">Enregistrer la situation</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== DETAIL ===== -->
+  <section class="content" id="vDetail" hidden>
+    <div class="card"><h3>Planning détaillé – saisie du réalisé<span class="sp"></span>
+      <span class="tools"><label class="f">Niveau d'affichage <select id="fDepth"></select></label>
+      <input class="search" id="qDet" placeholder="Rechercher une tâche…" aria-label="Rechercher une tâche">
+      <button class="btn-line" id="btnClear">Effacer mes saisies</button></span></h3>
+      <div class="tw"><table><thead><tr><th>N°</th><th>Tâche</th><th>Début</th><th>Fin</th><th>Durée<br>(jours)</th><th>Prévu<br>%</th><th>Réalisé<br>%</th><th>Écart<br>%</th><th>Écart<br>(jours)</th><th>Cadence<br>prévue</th><th>Cadence<br>actuelle</th><th>Cadence<br>requise</th><th>Fin<br>projetée</th><th>Statut</th></tr></thead>
+      <tbody id="tbDet"></tbody></table></div>
+      <p class="hint">Saisissez le réalisé dans les cases jaunes (Entrée = ligne suivante). Les lignes récapitulatives sont recalculées à partir de leurs tâches, pondérées par la durée. Les saisies restent enregistrées dans ce navigateur. Cadences en <span class="uTxt"></span>.</p>
+    </div>
+  </section>
+
+  <!-- ===== METHODE ===== -->
+  <section class="content" id="vMethod" hidden>
+    <div class="card method"><h3>Méthode de calcul</h3>
+      <label><b>Avancement prévu :</b>
+        <select class="mini" id="fMode"><option value="date">calculé à la date d'arrêté</option><option value="file">% achevé du fichier Project</option></select></label>
+      <label><b>Tolérance « Conforme » :</b> <input class="mini" type="number" id="fTol" value="3" min="0" max="20" step="0.5" style="width:70px"> points d'écart</label>
+      <h4>Prévu</h4><p>Part de la durée de la tâche écoulée à la date d'arrêté (même règle que le % achevé de Project). En mode « fichier », c'est le % achevé enregistré dans Project.</p>
+      <h4>Réalisé</h4><p>Colonne %Avancement du planning, modifiable dans Planning détaillé.</p>
+      <h4>Regroupements</h4><p>Lots, zones, niveaux, types d'élément et lignes récapitulatives : moyenne des tâches concernées pondérée par leur durée. Les zones, niveaux et types sont reconnus d'après les noms des tâches (OUEST, R+2, Faux plafond…).</p>
+      <h4>Écarts</h4><p>Écart % = réalisé − prévu. Écart en jours = écart % × durée : négatif = retard.</p>
+      <h4>Cadences</h4><p>Prévue = 100 % ÷ durée. Actuelle = réalisé ÷ jours écoulés depuis le début. Requise = reste à faire ÷ jours restants avant la fin prévue. Fin projetée = date d'arrêté + reste à faire ÷ cadence actuelle.</p>
+      <h4>Courbe S</h4><p>Le prévu est recalculé pour chaque date. Le réalisé relie les situations enregistrées (bouton « Enregistrer la situation ») à la situation en cours ; sans historique, il part de 0 au début des travaux. La projection prolonge la cadence actuelle.</p>
+      <h4>Statuts</h4><p>Terminé (100 %), Presque terminé (≥ 95 %), Conforme (écart dans la tolérance), En avance, En retard, Hors délai (fin prévue dépassée), Non démarré.</p>
+    </div>
+  </section>
+</main>
+</div>
+
+<script>
+const DAY=864e5, $=id=>document.getElementById(id);
+const S={tasks:[],byUid:{},root:null,title:'',status:null,edits:{},hist:{},collapsed:new Set(),types:new Set(),zones:new Set(),nivs:new Set(),sts:new Set(),view:'vDash',charts:{}};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const toDay=s=>{if(!s)return null;const m=String(s).match(/(\d{4})-(\d{2})-(\d{2})/);return m?Date.UTC(+m[1],m[2]-1,+m[3])/DAY:null};
+const fD=d=>{if(d==null||!isFinite(d))return '–';const x=new Date(d*DAY);return String(x.getUTCDate()).padStart(2,'0')+'/'+String(x.getUTCMonth()+1).padStart(2,'0')+'/'+x.getUTCFullYear()};
+const iso=d=>new Date(d*DAY).toISOString().slice(0,10);
+const n0=v=>v==null||!isFinite(v)?'–':Math.round(v).toLocaleString('fr-FR');
+const n1=v=>v==null||!isFinite(v)?'–':v.toLocaleString('fr-FR',{maximumFractionDigits:1});
+const sg=(v,f=n0)=>{if(v==null||!isFinite(v))return '–';const t=f(v);return /^-?0$/.test(t)?'0':(v>0?'+':'')+t};
+const K=()=>'sgtm-suivi:'+S.title;
+function save(){try{localStorage.setItem(K(),JSON.stringify({edits:S.edits,hist:S.hist}))}catch(e){}}
+function load(){try{const o=JSON.parse(localStorage.getItem(K())||'{}');S.edits=o.edits||{};S.hist=o.hist||{}}catch(e){S.edits={};S.hist={}}}
+
+/* ---------- reconnaissance zone / niveau / type */
+const ZN=[[/\bnord[\s-]*ouest\b|\bNO\b/i,'NORD-OUEST'],[/\bnord[\s-]*est\b|\bNE\b/i,'NORD-EST'],[/\bsud[\s-]*ouest\b|\bSO\b/i,'SUD-OUEST'],[/\bsud[\s-]*est\b|\bSE\b/i,'SUD-EST'],
+  [/\bouest\b/i,'OUEST'],[/\best\b/i,'EST'],[/\bnord\b/i,'NORD'],[/\bsud\b/i,'SUD'],[/\bzone\s*(\d+)/i,m=>'ZONE '+m[1]]];
+const zoneOf=n=>{for(const [r,v] of ZN){const m=n.match(r);if(m)return typeof v==='function'?v(m):v}return null};
+const nivOf=n=>{let m=n.match(/\bR\s*\+\s*(\d+)\b/i);if(m)return 'R+'+m[1];if(/\bRDC\b/i.test(n))return 'RDC';if(/\bMEZZ?\b|mezzanine/i.test(n))return 'MEZZ';if(/\bSSL\b|\bSS\b|sous[\s-]sol/i.test(n))return 'SSL';return null};
+const NIVORD=n=>n==='SSL'?-3:n==='MEZZ'?-2:n==='RDC'?-1:+n.slice(2);
+const TYPES=[
+ ['Cloisons',/cloison|doublage/i],['Faux plafonds',/faux[\s-]*plafond/i],
+ ['Revêtements mur',/rev[eê]tement\s*mur|habillage|papier\s*peint|fa[iï]ence/i],
+ ['Revêtements sol',/rev[eê]tement|carrelage|parquet|moquette|\bsols?\b/i],
+ ['Peinture',/peinture/i],['Menuiseries',/porte|menuiserie|mensuiserie|rideau/i],
+ ['Électricité CFA/CFO',/\bcfa\b|\bcfo\b|c[aâ]ble|tubage|cheminement|transformation|affichage|htb|hta/i],
+ ['Sprinklage',/sprinkl/i],['Réseaux CVC',/a[eé]raulique|\bcvc\b/i],
+ ['Plomberie / incendie',/hydraulique|evac|incendie|plomberie/i],['Terminaux',/terminaux/i],
+ ['Étanchéité',/[ée]tanch/i],['Mise à disposition',/\bMAD\b|mise\s*[àa]\s*disposition/],
+ ['Planchers',/plancher/i],['Gradins & crémaillères',/gradin|cr[eé]maill/i],['Chambords',/chambord|\bCR\d+|[ée]dicule|[ée]l[ée]vation/i],
+ ['Couronne',/couronne/i],['Fondations',/fondation|semelle|radier|terrassement/i],['Charpente métallique',/m[eé]tallique|passerelle|charpente/i],
+ ['Approvisionnement',/approvision|livraison/i],['Fabrication',/fabrication/i]];
+const typeOf=names=>{for(const n of names)for(const [t,r] of TYPES)if(r.test(n))return t;return 'Autres'};
+
+/* ---------- import XML */
+function parseXML(text){
+  const doc=new DOMParser().parseFromString(text,'application/xml');
+  if(doc.getElementsByTagName('parsererror').length)throw new Error("Le fichier n'est pas un XML valide.");
+  const P=doc.documentElement;if(P.localName!=='Project')throw new Error("Ce XML n'est pas un export MS Project.");
+  const kid=(el,n)=>{for(const c of el.children)if(c.localName===n)return c.textContent;return null};
+  let av=null;
+  for(const c of P.children)if(c.localName==='ExtendedAttributes')for(const ea of c.children){const a=kid(ea,'Alias')||'';if(/avancement/i.test(a)&&!/pr[ée]vu/i.test(a)){av=kid(ea,'FieldID');break}}
+  const TE=[...P.children].find(c=>c.localName==='Tasks');if(!TE)throw new Error('Aucune tâche dans le fichier.');
+  const tasks=[],stack=[];
+  for(const t of TE.children){
+    if(t.localName!=='Task')continue;
+    const f={};let a=null;
+    for(const c of t.children){if(c.localName==='ExtendedAttribute'){if(av&&kid(c,'FieldID')===av)a=kid(c,'Value')}else if(!(c.localName in f))f[c.localName]=c.textContent}
+    if(f.IsNull==='1'||f.Name==null)continue;
+    const lvl=+(f.OutlineLevel||0),s=toDay(f.Start),e=toDay(f.Finish),ms=f.Milestone==='1';
+    const pa=a!=null?parseFloat(String(a).replace(',','.')):NaN;
+    const T={uid:f.UID,id:f.ID,name:f.Name.trim(),lvl,start:s,finish:e,ms,dur:ms||s==null?0:e-s+1,pcFile:+(f.PercentComplete||0),avFile:isNaN(pa)?null:pa,kids:[],parent:null};
+    while(stack.length&&stack[stack.length-1].lvl>=lvl)stack.pop();
+    if(stack.length){T.parent=stack[stack.length-1];T.parent.kids.push(T)}
+    stack.push(T);tasks.push(T);
+  }
+  return{tasks,title:kid(P,'Title')||kid(P,'Name')||'Planning',status:toDay(kid(P,'StatusDate')),avFound:!!av};
+}
+function ingest(text){
+  let r;try{r=parseXML(text)}catch(e){alert(e.message);return}
+  // ne garder que la partie « Lots secondaires »
+  const LS=r.tasks.find(t=>/lots?\s*secondaires?/i.test(t.name)&&t.kids.length);
+  if(!LS){alert("La partie « Lots secondaires » est introuvable dans ce planning.");return}
+  const sub=[];(function w(t){sub.push(t);t.kids.forEach(w)})(LS);
+  LS.parent=null;r.tasks=sub;
+  S.tasks=r.tasks;S.byUid={};S.title=r.title;
+  for(const t of r.tasks){
+    S.byUid[t.uid]=t;
+    const chain=[];for(let p=t;p;p=p.parent)chain.push(p.name);           // soi-même puis ancêtres
+    t.niv=null;for(const n of chain){const v=nivOf(n);if(v){t.niv=v;break}}
+    t.zone=null;for(const n of chain.slice().reverse()){const v=zoneOf(n);if(v){t.zone=v;break}}
+    t.type=typeOf(chain);
+  }
+  for(const t of r.tasks){t.leaves=[];}
+  for(const t of r.tasks)if(!t.kids.length)for(let p=t;p;p=p.parent)p.leaves.push(t);
+  S.root=r.tasks.find(t=>!t.parent);
+  S.status=r.status??Math.floor(Date.now()/DAY);
+  load();
+  // filtres
+  $('fDate').value=iso(S.status);
+  fillFilterOptions();
+  const maxL=Math.max(...r.tasks.map(t=>t.lvl));const dp=$('fDepth');dp.innerHTML='';for(let i=S.root.lvl;i<=maxL;i++)dp.add(new Option(i-S.root.lvl+1,i));dp.value=maxL;
+  S.types=new Set();S.zones=new Set();S.nivs=new Set();S.sts=new Set();S.collapsed=new Set();buildAllMS();
+  $('drop').hidden=true;$('filters').hidden=false;
+  show(S.view);
+}
+function fillFilterOptions(){
+  const L=S.root.leaves.filter(t=>!S.types.size||S.types.has(t.type));
+  const zs=[...new Set(L.map(t=>t.zone).filter(Boolean))].sort(), ns=[...new Set(L.map(t=>t.niv).filter(Boolean))].sort((a,b)=>NIVORD(a)-NIVORD(b));
+  setMS('zone',[{items:zs}]);setMS('niv',[{items:ns}]);
+}
+function readFile(f){if(!f)return;const fr=new FileReader();fr.onload=()=>ingest(fr.result);fr.readAsText(f)}
+
+/* ---------- calculs */
+const P=()=>({D:toDay($('fDate').value)??S.status,U:+$('fUnit').value,mode:$('fMode').value,tol:+$('fTol').value||0});
+function leafVals(t,D,mode,realOverride){
+  let prev;
+  if(mode==='file')prev=t.pcFile;else if(t.start==null)prev=0;else if(t.dur===0)prev=D>=t.start?100:0;else prev=Math.max(0,Math.min(1,(D-t.start+1)/t.dur))*100;
+  const e=realOverride?realOverride[t.uid]:S.edits[t.uid];
+  const real=e!=null?e:(realOverride?0:(t.avFile??0));
+  return{prev,real};
+}
+function computeLeaves(){const{D,U,mode,tol}=P();for(const t of S.tasks)if(!t.kids.length){Object.assign(t,leafVals(t,D,mode));calc(t,D,U,tol)}}
+function agg(leaves,D,U,tol){
+  const o={start:null,finish:null,prev:0,real:0,n:leaves.length};
+  if(!leaves.length){o.dur=0;o.st=['wait','–'];return o}
+  let w=0,p=0,r=0;
+  for(const t of leaves){const x=t.dur||0;w+=x;p+=t.prev*x;r+=t.real*x;if(t.start!=null){o.start=o.start==null?t.start:Math.min(o.start,t.start);o.finish=o.finish==null?t.finish:Math.max(o.finish,t.finish)}}
+  if(w===0){w=leaves.length;p=leaves.reduce((a,t)=>a+t.prev,0);r=leaves.reduce((a,t)=>a+t.real,0)}
+  o.prev=p/w;o.real=r/w;o.dur=o.start==null?0:o.finish-o.start+1;
+  calc(o,D,U,tol);return o;
+}
+function calc(t,D,U,tol){
+  const rest=100-t.real;
+  t.ecart=t.real-t.prev;t.ecartJ=t.dur?t.ecart/100*t.dur:null;t.cadP=t.dur?100/t.dur*U:null;
+  const el=t.start!=null?D-t.start+1:0;t.cadA=el>0&&t.dur?t.real/el*U:null;
+  const rem=t.finish!=null?(D<t.start?t.dur:t.finish-D):0;
+  t.cadR=rest<=0?0:(rem>0?rest/rem*U:Infinity);
+  t.finProj=rest<=0?null:(t.cadA>0?D+Math.ceil(rest/(t.cadA/U)):null);t.gliss=t.finProj!=null?t.finProj-t.finish:null;
+  if(t.real>=100)t.st=['done','Terminé'];
+  else if(t.finish!=null&&D>t.finish)t.st=['over','Hors délai'];
+  else if(t.real>=95)t.st=['almost','Presque terminé'];
+  else if(t.start!=null&&D<t.start&&t.real===0)t.st=['wait','Non démarré'];
+  else if(t.ecart<-tol)t.st=['late','En retard'];
+  else if(t.ecart>tol)t.st=['ahead','En avance'];
+  else t.st=['ok','Conforme'];
+}
+function filtered(withType=true){
+  const scope=S.root;
+  return scope.leaves.filter(t=>(!S.zones.size||S.zones.has(t.zone))&&(!S.nivs.size||S.nivs.has(t.niv))&&(!withType||!S.types.size||S.types.has(t.type))&&(!S.sts.size||S.sts.has(t.st[0])));
+}
+const pc=v=>v>=90?'p-ok':v>=50?'p-mid':'p-bad';
+
+/* ---------- dashboard */
+function renderDash(){
+  computeLeaves();const{D,U,tol}=P();const L=filtered();const A=agg(L,D,U,tol);
+  const uTxt=$('fUnit').selectedOptions[0].textContent;document.querySelectorAll('.uTxt').forEach(e=>e.textContent=uTxt);
+  $('kPrev').textContent=n0(A.prev)+'%';$('bPrev').style.width=A.prev+'%';
+  $('kReal').textContent=n0(A.real)+'%';$('bReal').style.width=A.real+'%';
+  const ecOK=A.ecart>=-tol;
+  $('kEc').textContent=sg(A.ecart)+'%';$('kEc').className='v '+(A.ecart<-0.5?'c-red':'c-green');
+  $('bEc').style.cssText=`width:${Math.min(100,Math.abs(A.ecart))}%;background:${A.ecart<0?'var(--red)':'var(--green)'}`;
+  const j=A.ecartJ;$('kJ').textContent=j==null?'–':sg(j);$('kJ').className='v '+(j<-0.5?'c-red':'c-green');
+  $('bJ').style.cssText=`width:${A.dur?Math.min(100,Math.abs(j)/A.dur*100*4):0}%;background:${j<0?'var(--red)':'var(--green)'}`;
+  $('kJs').textContent=A.finProj?`Fin projetée ${fD(A.finProj)} (prévue ${fD(A.finish)})`:'Par rapport à la date contractuelle';
+  // donut
+  $('dTxt').textContent=n0(A.real)+'%';$('dR').textContent=n0(A.real)+'%';$('dRest').textContent=n0(100-A.real)+'%';
+  const scope=S.root;
+  $('dScope').textContent=(S.types.size?[...S.types].join(', '):'Lots secondaires')+' – '+L.length+' tâches';
+  donut(A.real);
+  // cadences
+  const mx=Math.max(A.cadA||0,A.cadP||0,isFinite(A.cadR)?A.cadR:0)||1;
+  $('cA').textContent=A.cadA==null?'–':n1(A.cadA)+' '+uTxt;$('bcA').style.width=(A.cadA||0)/mx*100+'%';
+  $('cP').textContent=n1(A.cadP)+' '+uTxt;$('bcP').style.width=(A.cadP||0)/mx*100+'%';
+  $('cR').textContent=A.real>=100?'–':(isFinite(A.cadR)?n1(A.cadR)+' '+uTxt:'délai dépassé');$('bcR').style.width=(isFinite(A.cadR)?A.cadR/mx*100:100)+'%';
+  $('cR').className=A.cadA!=null&&A.cadR>A.cadA*1.05?'c-red':'';
+  $('cRs').textContent=A.real>=100?'':(A.cadA&&isFinite(A.cadR)?`Pour finir le ${fD(A.finish)} : ${n1(A.cadR/A.cadA)} × la cadence actuelle`:'');
+  // par type
+  const byNiv=S.types.size===1, LnoType=filtered(true), groups={};const one=[...S.types][0];
+  for(const t of LnoType){const k=byNiv?(t.niv||'Sans niveau'):t.type;(groups[k]=groups[k]||[]).push(t)}
+  const ord=k=>k==='Sans niveau'?99:NIVORD(k);
+  const rows=Object.entries(groups).map(([k,v])=>({k,a:agg(v,D,U,tol),w:v.reduce((s,t)=>s+(t.dur||0),0)})).filter(r=>r.w>0||r.a.n)
+    .sort(byNiv?(a,b)=>ord(a.k)-ord(b.k):(a,b)=>(a.a.start??0)-(b.a.start??0));
+  S.groupBy=byNiv?'niv':'type';
+  $('hBars').textContent=byNiv?`Avancement par niveau – ${one}`:"Avancement par type d'élément";
+  $('hTab').textContent=byNiv?`Suivi détaillé par niveau – ${one}`:'Suivi détaillé par activité';
+  const q=$('qType').value.trim().toLowerCase();
+  S.typeRows=rows;
+  $('tbType').innerHTML=rows.filter(r=>!q||r.k.toLowerCase().includes(q)).map((r,i)=>{const a=r.a;return `<tr class="click" data-type="${esc(r.k)}">
+    <td>${i+1}</td><td>${esc(r.k)} <span class="idn">(${a.n})</span></td><td>${fD(a.start)}</td><td>${fD(a.finish)}</td><td>${a.dur||'–'}</td>
+    <td class="${pc(a.prev)}">${n0(a.prev)}%</td><td class="${pc(a.real)}">${n0(a.real)}%</td>
+    <td class="${a.ecart<-0.5?'p-bad':'p-ok'}">${sg(a.ecart)}%</td><td>${a.ecartJ==null?'–':sg(a.ecartJ)}</td>
+    <td>${a.real>=100||a.cadA==null?'–':n1(a.cadA)}</td><td>${a.real>=100?'–':isFinite(a.cadR)?n1(a.cadR):'<span class="p-bad">dépassé</span>'}</td>
+    <td><span class="st ${a.st[0]}">${a.st[1]}</span></td></tr>`}).join('')||'<tr><td colspan="12">Aucune activité pour ces filtres.</td></tr>';
+  bars(byNiv?rows.filter(r=>r.w>0):rows.filter(r=>r.w>0).sort((a,b)=>b.w-a.w).slice(0,6).sort((a,b)=>(a.a.start??0)-(b.a.start??0)));
+  scurve(L,A);
+  const nh=Object.keys(S.hist).length;$('snapTxt').textContent=nh?`${nh} situation${nh>1?'s':''} enregistrée${nh>1?'s':''}`:'Aucune situation enregistrée';
+}
+function haveChart(){return typeof Chart!=='undefined'}
+function donut(v){
+  if(!haveChart())return;
+  const d=[v,100-v];
+  if(!S.charts.d)S.charts.d=new Chart($('cDonut'),{type:'doughnut',data:{datasets:[{data:d,backgroundColor:['#D6A42B','#E4E7ED'],borderWidth:0,borderRadius:4}]},options:{cutout:'76%',plugins:{legend:{display:false},tooltip:{enabled:false}},animation:{duration:400}}});
+  else{S.charts.d.data.datasets[0].data=d;S.charts.d.update()}
+}
+const valueLabels={id:'vl',afterDatasetsDraw(c){const g=c.ctx;g.save();g.font='600 11.5px Inter, Arial';g.fillStyle='#16223A';g.textAlign='center';
+  c.data.datasets.forEach((ds,i)=>c.getDatasetMeta(i).data.forEach((b,j)=>{const v=ds.data[j];if(v==null)return;g.fillText(Math.round(v)+'%',b.x,b.y-5)}));g.restore()}};
+function bars(rows){
+  if(!haveChart())return;
+  const lab=rows.map(r=>r.k),pv=rows.map(r=>r.a.prev),rv=rows.map(r=>r.a.real);
+  if(!S.charts.b)S.charts.b=new Chart($('cBars'),{type:'bar',data:{labels:lab,datasets:[{label:'Prévu',data:pv,backgroundColor:'#D6A42B',borderRadius:2,maxBarThickness:38},{label:'Réalisé',data:rv,backgroundColor:'#15233B',borderRadius:2,maxBarThickness:38}]},
+    options:{maintainAspectRatio:false,layout:{padding:{top:18}},scales:{y:{min:0,max:100,ticks:{callback:v=>v+'%',stepSize:20,font:{size:11}},grid:{color:'#EEF1F5'}},x:{grid:{display:false},ticks:{font:{size:11.5},autoSkip:false,maxRotation:0,callback(v){const s=this.getLabelForValue(v);return s.length>16?s.split(' '):s}}}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.dataset.label} : ${n1(c.raw)} %`}}},
+      onClick:(e,els)=>{if(els.length){openGroup(S.charts.b.data.labels[els[0].index])}}},plugins:[valueLabels]});
+  else{const c=S.charts.b;c.data.labels=lab;c.data.datasets[0].data=pv;c.data.datasets[1].data=rv;c.update()}
+}
+const nowLine={id:'now',afterDraw(c){const x0=c.options.plugins.now?.x;if(x0==null)return;const xs=c.scales.x,ys=c.scales.y;const x=xs.getPixelForValue(x0);if(x<xs.left||x>xs.right)return;const g=c.ctx;g.save();
+  g.strokeStyle='#15233B';g.lineWidth=1.2;g.beginPath();g.moveTo(x,ys.top);g.lineTo(x,ys.bottom);g.stroke();
+  const t=c.options.plugins.now.label;g.font='600 11px Inter, Arial';const w=g.measureText(t).width+12;g.fillStyle='#15233B';g.fillRect(x-w/2,ys.top-20,w,18);g.fillStyle='#fff';g.textAlign='center';g.fillText(t,x,ys.top-7);g.restore()}};
+function scurve(L,A){
+  if(!haveChart()||!L.length)return;
+  const{D,U,mode,tol}=P();
+  const s0=A.start,f0=Math.max(A.finish,Math.min(A.finProj||A.finish,A.finish+365));
+  const N=48,step=Math.max(1,(f0-s0)/N),prev=[];
+  for(let k=0;k<=N;k++){const d=Math.round(s0+k*step);let w=0,p=0;for(const t of L){const x=t.dur||0;const v=leafVals(t,d,'date').prev;w+=x;p+=v*x}prev.push({x:d*DAY,y:w?p/w:0})}
+  // réalisé : historique + situation en cours
+  const real=[{x:s0*DAY,y:0}];
+  Object.keys(S.hist).map(toDay).filter(d=>d>s0&&d<D).sort((a,b)=>a-b).forEach(d=>{const snap=S.hist[iso(d)];let w=0,r=0;for(const t of L){const x=t.dur||0;w+=x;r+=(snap[t.uid]??0)*x}real.push({x:d*DAY,y:w?r/w:0})});
+  real.push({x:D*DAY,y:A.real});
+  const proj=[];if(A.real<100&&A.cadA>0){const per=A.cadA/U;const end=Math.min(f0,D+Math.ceil((100-A.real)/per));proj.push({x:D*DAY,y:A.real},{x:end*DAY,y:Math.min(100,A.real+per*(end-D))})}
+  const lbl=new Date(D*DAY).toLocaleDateString('fr-FR',{month:'short',year:'numeric',timeZone:'UTC'});
+  const ds=[{label:'Prévu',data:prev,borderColor:'#D6A42B',backgroundColor:'#D6A42B',pointRadius:0,borderWidth:2.5,tension:.3},
+    {label:'Réalisé',data:real,borderColor:'#15233B',backgroundColor:'rgba(47,111,224,.14)',fill:'origin',pointRadius:3,pointBackgroundColor:'#15233B',borderWidth:2.5,tension:.25},
+    {label:'Projection',data:proj,borderColor:'#9BA6B8',borderDash:[6,5],pointRadius:0,borderWidth:2}];
+  if(!S.charts.s)S.charts.s=new Chart($('cS'),{type:'line',data:{datasets:ds},plugins:[nowLine],
+    options:{maintainAspectRatio:false,parsing:false,layout:{padding:{top:24,right:8}},interaction:{mode:'nearest',intersect:false},
+      scales:{x:{type:'linear',min:s0*DAY,max:f0*DAY,ticks:{maxTicksLimit:8,font:{size:11},callback:v=>new Date(v).toLocaleDateString('fr-FR',{month:'short',year:'numeric',timeZone:'UTC'})},grid:{display:false}},
+        y:{min:0,max:100,ticks:{callback:v=>v+'%',stepSize:20,font:{size:11}},grid:{color:'#EEF1F5'}}},
+      plugins:{legend:{display:false},now:{x:D*DAY,label:lbl},tooltip:{callbacks:{title:i=>fD(i[0].raw.x/DAY),label:c=>`${c.dataset.label} : ${n1(c.raw.y)} %`}}}}});
+  else{const c=S.charts.s;c.data.datasets.forEach((d,i)=>d.data=ds[i].data);c.options.plugins.now={x:D*DAY,label:lbl};c.options.scales.x.min=s0*DAY;c.options.scales.x.max=f0*DAY;c.update()}
+}
+
+/* ---------- planning détaillé */
+function renderDetail(){
+  computeLeaves();const{D,U,tol}=P();
+  const scope=S.root;const set=new Set(filtered());const q=$('qDet').value.trim().toLowerCase();const maxL=+$('fDepth').value;
+  const rows=[];
+  (function walk(t){
+    if(t.lvl>maxL)return;
+    if(t.kids.length){const L=t.leaves.filter(x=>set.has(x)&&(!q||x.name.toLowerCase().includes(q)||t.name.toLowerCase().includes(q)||String(x.id)===q));if(!L.length)return;t.A=agg(L,D,U,tol);rows.push(t);if(!S.collapsed.has(t.uid))t.kids.forEach(walk)}
+    else{if(!set.has(t))return;if(q&&!t.name.toLowerCase().includes(q)&&String(t.id)!==q&&!(t.parent&&t.parent.name.toLowerCase().includes(q)))return;t.A=t;rows.push(t)}
+  })(scope);
+  S.detRows=rows;const base=scope.lvl;
+  $('tbDet').innerHTML=rows.map(t=>{const leaf=!t.kids.length;return `<tr data-r="${t.uid}" class="${leaf?'':(t.lvl-base<=1?'s s1':'s')}">
+    <td>${t.id}</td><td title="${esc(t.name)}"><span style="padding-left:${(t.lvl-base)*15}px">${leaf?'<span class="tg"></span>':`<span class="tg" data-t="${t.uid}">${S.collapsed.has(t.uid)?'▸':'▾'}</span>`}${esc(t.name)}</span></td>
+    <td>${fD(t.A.start)}</td><td>${fD(t.A.finish)}</td><td>${t.A.dur||'–'}</td><td data-c="prev"></td>
+    <td>${leaf?`<input inputmode="decimal" data-u="${t.uid}" aria-label="Réalisé ${esc(t.name)}" class="${S.edits[t.uid]!=null?'edited':''}">`:'<span data-c="real"></span>'}</td>
+    <td data-c="ec"></td><td data-c="ej"></td><td data-c="cp"></td><td data-c="ca"></td><td data-c="cr"></td><td data-c="fp"></td><td data-c="st"></td></tr>`}).join('')||'<tr><td colspan="14">Aucune tâche pour ces filtres.</td></tr>';
+  fillDetail();
+}
+function fillDetail(){
+  computeLeaves();const{D,U,tol}=P();const set=new Set(filtered());
+  for(const tr of $('tbDet').querySelectorAll('tr[data-r]')){
+    const t=S.byUid[tr.dataset.r];const a=t.kids.length?agg(t.leaves.filter(x=>set.has(x)),D,U,tol):t;const c=n=>tr.querySelector(`[data-c="${n}"]`);
+    c('prev').textContent=n1(a.prev);
+    const i=tr.querySelector('input');if(i){if(document.activeElement!==i)i.value=n1(a.real)}else c('real').textContent=n1(a.real);
+    c('ec').innerHTML=`<span class="${a.ecart<-0.5?'p-bad':a.ecart>0.5?'p-ok':''}">${sg(a.ecart,n1)}</span>`;
+    c('ej').textContent=a.ecartJ==null?'–':sg(a.ecartJ);
+    c('cp').textContent=n1(a.cadP);c('ca').textContent=a.cadA==null?'–':n1(a.cadA);
+    c('cr').innerHTML=a.real>=100?'–':isFinite(a.cadR)?`<span class="${a.cadA!=null&&a.cadR>a.cadA*1.05?'p-bad':''}">${n1(a.cadR)}</span>`:'<span class="p-bad">dépassé</span>';
+    c('fp').innerHTML=a.real>=100?'–':a.finProj?`<span class="${a.gliss>0?'p-bad':''}" title="${sg(a.gliss)} j">${fD(a.finProj)}</span>`:'–';
+    c('st').innerHTML=`<span class="st ${a.st[0]}">${a.st[1]}</span>`;
+  }
+}
+
+/* ---------- export Excel */
+function exportXls(){
+  if(typeof XLSX==='undefined'){alert("L'export Excel nécessite une connexion internet.");return}
+  computeLeaves();const{D,U,tol}=P();const uT=$('fUnit').selectedOptions[0].textContent;
+  const r1=v=>v==null||!isFinite(v)?null:Math.round(v*10)/10, xd=d=>d==null?null:new Date(d*DAY);
+  const scope=S.root;
+  const filt=`Élément : ${S.types.size?[...S.types].join(', '):'Tous'} | Zone : ${S.zones.size?[...S.zones].join(', '):'Toutes'} | Niveau : ${S.nivs.size?[...S.nivs].join(', '):'Tous'} | Statut : ${S.sts.size?[...S.sts].map(v=>STL[v]).join(', '):'Tous'}`;
+  const A=agg(filtered(),D,U,tol);
+  const s1=[['GRAND STADE DE CASABLANCA – Suivi d\'avancement au '+fD(D)],[filt],[],
+    ['Avancement prévu %',r1(A.prev)],['Avancement réalisé %',r1(A.real)],['Écart %',r1(A.ecart)],['Retard / avance (jours)',A.ecartJ==null?null:Math.round(A.ecartJ)],
+    ['Cadence actuelle ('+uT+')',r1(A.cadA)],['Cadence prévue ('+uT+')',r1(A.cadP)],['Cadence requise ('+uT+')',isFinite(A.cadR)?r1(A.cadR):'délai dépassé'],['Fin prévue',xd(A.finish)],['Fin projetée',xd(A.finProj)],[],
+    ['N°','Activité','Nb tâches','Début','Fin','Durée (j)','Prévu %','Réalisé %','Écart %','Écart (j)','Cadence actuelle','Cadence requise','Statut']];
+  (S.typeRows||[]).forEach((r,i)=>{const a=r.a;s1.push([i+1,r.k,a.n,xd(a.start),xd(a.finish),a.dur,r1(a.prev),r1(a.real),r1(a.ecart),a.ecartJ==null?null:Math.round(a.ecartJ),r1(a.cadA),a.real>=100?null:isFinite(a.cadR)?r1(a.cadR):'dépassé',a.st[1]])});
+  if(S.view!=='vDetail')renderDetailSilently();
+  const s2=[['N°','Tâche','Zone','Niveau','Type','Début','Fin','Durée (j)','Prévu %','Réalisé %','Écart %','Écart (j)','Cadence prévue','Cadence actuelle','Cadence requise','Fin projetée','Statut']];
+  const base=scope.lvl;
+  for(const t of S.detRows||[]){const a=t.A;s2.push([+t.id,'   '.repeat(t.lvl-base)+t.name,t.zone||'',t.niv||'',t.kids.length?'':t.type,xd(a.start),xd(a.finish),a.dur,r1(a.prev),r1(a.real),r1(a.ecart),a.ecartJ==null?null:Math.round(a.ecartJ),r1(a.cadP),r1(a.cadA),a.real>=100?null:isFinite(a.cadR)?r1(a.cadR):'dépassé',a.real>=100?null:xd(a.finProj),a.st[1]])}
+  const wb=XLSX.utils.book_new();
+  const w1=XLSX.utils.aoa_to_sheet(s1,{cellDates:true});w1['!cols']=[26,26,10,11,11,9,9,9,9,9,13,13,16].map(w=>({wch:w}));
+  const w2=XLSX.utils.aoa_to_sheet(s2,{cellDates:true});w2['!cols']=[6,48,12,8,20,11,11,9,9,9,9,9,12,12,12,12,16].map(w=>({wch:w}));
+  for(const ws of [w1,w2])for(const k in ws)if(ws[k]&&ws[k].t==='d')ws[k].z='dd/mm/yyyy';
+  XLSX.utils.book_append_sheet(wb,w1,'Tableau de bord');XLSX.utils.book_append_sheet(wb,w2,'Planning détaillé');
+  XLSX.writeFile(wb,'Suivi_avancement_'+iso(D)+'.xlsx');
+}
+function renderDetailSilently(){renderDetail()}
+
+/* ---------- navigation & évènements */
+function show(v){
+  S.view=v;document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===v));
+  if(!S.tasks.length&&v!=='vMethod'){['vDash','vDetail','vMethod'].forEach(x=>$(x).hidden=true);$('drop').hidden=false;return}
+  $('drop').hidden=true;['vDash','vDetail','vMethod'].forEach(x=>$(x).hidden=x!==v);
+  if(v==='vDash')renderDash();else if(v==='vDetail')renderDetail();
+}
+function refresh(){if(!S.tasks.length)return;show(S.view)}
+function openType(k){S.types=new Set([k]);syncMS('elem');fillFilterOptions();show('vDetail')}
+const MAIN=['Cloisons','Faux plafonds','Revêtements sol','Revêtements mur','Peinture'];
+const STL={late:'En retard',over:'Hors délai',ok:'Conforme',ahead:'En avance',almost:'Presque terminé',done:'Terminé',wait:'Non démarré'};
+const MSDEF={elem:{set:()=>S.types,put:v=>S.types=v,all:'Tous',unit:'éléments'},zone:{set:()=>S.zones,put:v=>S.zones=v,all:'Toutes',unit:'zones'},
+  niv:{set:()=>S.nivs,put:v=>S.nivs=v,all:'Tous',unit:'niveaux'},st:{set:()=>S.sts,put:v=>S.sts=v,all:'Tous',unit:'statuts',lab:v=>STL[v]}};
+const msEl=k=>document.querySelector(`.ms[data-ms="${k}"]`);
+function setMS(k,groups){
+  const d=MSDEF[k],el=msEl(k),lab=d.lab||(v=>v),vals=groups.flatMap(g=>g.items);
+  d.put(new Set([...d.set()].filter(v=>vals.includes(v))));
+  const cb=v=>`<label><input type="checkbox" value="${esc(v)}">${esc(lab(v))}</label>`;
+  el.querySelector('.menu').innerHTML=`<div class="acts"><button type="button" data-a="all">Tout cocher</button><button type="button" data-a="none">Tout décocher</button></div>`+
+    (vals.length?groups.filter(g=>g.items.length).map(g=>(g.title?`<div class="sep">${g.title}</div>`:'')+g.items.map(cb).join('')).join(''):'<div class="sep" style="border:0">Aucune valeur</div>');
+  syncMS(k);
+}
+function syncMS(k){
+  const d=MSDEF[k],el=msEl(k),set=d.set(),lab=d.lab||(v=>v),b=el.querySelector('button:not([data-a])');
+  el.querySelectorAll('.menu input').forEach(i=>i.checked=set.has(i.value));
+  const n=set.size,names=[...set].map(lab);b.textContent=!n?d.all:n<=2?names.join(', '):n+' '+d.unit;b.title=n?names.join(', '):d.all;
+}
+function buildAllMS(){
+  const present=new Set(S.root?S.root.leaves.map(t=>t.type):[]);
+  const others=[...present].filter(t=>!MAIN.includes(t)).sort((a,b)=>a==='Autres'?1:b==='Autres'?-1:a.localeCompare(b,'fr'));
+  setMS('elem',[{items:MAIN},{title:'Autres éléments',items:others}]);
+  setMS('st',[{items:Object.keys(STL)}]);
+  fillFilterOptions();
+}
+function syncAll(){Object.keys(MSDEF).forEach(syncMS)}
+function closeMS(except){document.querySelectorAll('.ms').forEach(el=>{if(el!==except){el.querySelector('.menu').hidden=true;el.querySelector('button').setAttribute('aria-expanded','false')}})}
+document.querySelectorAll('.ms').forEach(el=>{
+  const k=el.dataset.ms,d=MSDEF[k],btn=el.querySelector('button'),menu=el.querySelector('.menu');
+  btn.onclick=e=>{e.stopPropagation();closeMS(el);menu.hidden=!menu.hidden;btn.setAttribute('aria-expanded',String(!menu.hidden))};
+  menu.addEventListener('change',e=>{const i=e.target;if(!i.matches('input'))return;const set=d.set();i.checked?set.add(i.value):set.delete(i.value);syncMS(k);if(k==='elem')fillFilterOptions();refresh()});
+  menu.addEventListener('click',e=>{const a=e.target.dataset&&e.target.dataset.a;if(!a)return;d.put(a==='all'?new Set([...menu.querySelectorAll('input')].map(i=>i.value)):new Set());syncMS(k);if(k==='elem')fillFilterOptions();refresh()});
+});
+document.addEventListener('click',e=>{if(!e.target.closest('.ms'))closeMS()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){const o=[...document.querySelectorAll('.ms')].find(el=>!el.querySelector('.menu').hidden);if(o){closeMS();o.querySelector('button').focus()}}});
+document.querySelectorAll('nav a').forEach(a=>a.onclick=()=>show(a.dataset.v));
+$('btnOpen').onclick=$('btnOpen2').onclick=()=>$('file').click();
+$('file').onchange=e=>{readFile(e.target.files[0]);e.target.value=''};
+['dragover','dragenter'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();$('drop').classList.add('over')}));
+document.addEventListener('dragleave',e=>{if(!e.relatedTarget)$('drop').classList.remove('over')});
+document.addEventListener('drop',e=>{e.preventDefault();$('drop').classList.remove('over');readFile(e.dataTransfer.files[0])});
+['fDate','fUnit','fMode','fTol','fDepth'].forEach(i=>$(i).addEventListener('change',refresh));
+$('fDate').addEventListener('change',updToday);
+let qt;['qType','qDet'].forEach(i=>$(i).addEventListener('input',()=>{clearTimeout(qt);qt=setTimeout(refresh,200)}));
+$('btnReset').onclick=()=>{S.types=new Set();S.zones=new Set();S.nivs=new Set();S.sts=new Set();fillFilterOptions();syncAll();$('fDate').value=iso(S.status);$('qType').value='';$('qDet').value='';updToday();refresh()};
+$('tbType').addEventListener('click',e=>{const tr=e.target.closest('tr[data-type]');if(tr)openGroup(tr.dataset.type)});
+function openGroup(k){if(S.groupBy==='niv'){if(k!=='Sans niveau'){S.nivs=new Set([k]);syncMS('niv')}show('vDetail')}else openType(k)}
+$('tbDet').addEventListener('click',e=>{const t=e.target.closest('.tg[data-t]');if(!t)return;const u=t.dataset.t;S.collapsed.has(u)?S.collapsed.delete(u):S.collapsed.add(u);renderDetail()});
+$('tbDet').addEventListener('change',e=>{
+  const i=e.target.closest('input[data-u]');if(!i)return;const raw=i.value.replace('%','').replace(',','.').trim();
+  if(raw===''){delete S.edits[i.dataset.u];i.classList.remove('edited')}
+  else{let v=parseFloat(raw);if(isNaN(v)){i.value='';return}S.edits[i.dataset.u]=Math.max(0,Math.min(100,v));i.classList.add('edited')}
+  save();fillDetail();
+});
+$('tbDet').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches('input[data-u]')){e.preventDefault();const all=[...$('tbDet').querySelectorAll('input[data-u]')];const n=all[all.indexOf(e.target)+(e.shiftKey?-1:1)];e.target.blur();if(n){n.focus();n.select()}}});
+$('btnClear').onclick=()=>{if(confirm('Effacer toutes les valeurs saisies et revenir au %Avancement du fichier ?')){S.edits={};save();refresh()}};
+$('btnSnap').onclick=()=>{computeLeaves();const D=P().D,snap={};for(const t of S.tasks)if(!t.kids.length&&t.real)snap[t.uid]=Math.round(t.real*10)/10;S.hist[iso(D)]=snap;save();renderDash();alert('Situation du '+fD(D)+' enregistrée. Elle apparaîtra comme un point de la courbe réalisée.')};
+$('btnXls').onclick=exportXls;
+function updToday(){const d=toDay($('fDate').value)??Math.floor(Date.now()/DAY);$('todayTxt').textContent=new Date(d*DAY).toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric',timeZone:'UTC'})}
+updToday();show('vDash');
+</script>
+</body>
+</html>
